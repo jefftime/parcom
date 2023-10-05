@@ -14,11 +14,18 @@ pub fn seq(comptime t: anytype) Parser(get_return_type(t)) {
         const ReturnType = get_return_type(t);
         const impl = struct {
             fn parse(input: []const u8) Error!Result(ReturnType) {
-                _ = input;
-                unreachable;
+                if (input.len == 0) return Error.EndOfStream;
+
+                // inline for (t) |parser|  var result = try parser(input)
+
+                return Error.InvalidToken;
             }
         };
 
         return impl.parse;
     }
 }
+
+////////////////////////////////////////
+// Tests
+////////////////////////////////////////

@@ -5,7 +5,7 @@ const Parser = parcom.Parser;
 const Result = parcom.Result;
 const get_return_type = parcom.get_return_type;
 
-pub fn many1(comptime t: anytype) Parser(std.ArrayList(get_return_type(t))) {
+pub fn many(comptime t: anytype) Parser(std.ArrayList(get_return_type(t))) {
     comptime {
         if (@typeInfo(@TypeOf(t)) != .Fn) {
             @compileError("Expected function");
@@ -53,7 +53,7 @@ pub fn many1(comptime t: anytype) Parser(std.ArrayList(get_return_type(t))) {
 // }
 
 test "a_parser valid" {
-    const tag = @import("parser.zig").tag;
+    const tag = parcom.parser.tag;
 
     const input = "a";
     const result = try tag("a")(input);
@@ -62,7 +62,7 @@ test "a_parser valid" {
 }
 
 test "a_parser invalid character" {
-    const tag = @import("parser.zig").tag;
+    const tag = parcom.parser.tag;
 
     const input = "b";
     const result = tag("a")(input);
@@ -78,11 +78,11 @@ test "a_parser end of stream" {
 }
 
 test "many1 single character" {
-    const tag = @import("parser.zig").tag;
+    const tag = parcom.parser.tag;
     parcom.ALLOCATOR = std.testing.allocator;
 
     const input = "a";
-    const parser = many1(tag("a"));
+    const parser = many(tag("a"));
     const result = try parser(input);
     const expecteds = &[_][]const u8{"a"};
     for (expecteds, result.value.items) |expected, actual| {
@@ -93,11 +93,11 @@ test "many1 single character" {
 }
 
 test "many1 multiple characters" {
-    const tag = @import("parser.zig").tag;
+    const tag = parcom.parser.tag;
     parcom.ALLOCATOR = std.testing.allocator;
 
     const input = "aaa";
-    const parser = many1(tag("a"));
+    const parser = many(tag("a"));
     const result = try parser(input);
     try std.testing.expectEqualStrings("", result.input);
     const expecteds = &[_][]const u8{ "a", "a", "a" };
@@ -109,11 +109,11 @@ test "many1 multiple characters" {
 }
 
 test "many1 multiple characters with leftovers" {
-    const tag = @import("parser.zig").tag;
+    const tag = parcom.parser.tag;
     parcom.ALLOCATOR = std.testing.allocator;
 
     const input = "aaabcd";
-    const parser = many1(tag("a"));
+    const parser = many(tag("a"));
     const result = try parser(input);
     try std.testing.expectEqualStrings("bcd", result.input);
     const expecteds = &[_][]const u8{ "a", "a", "a" };
@@ -125,11 +125,11 @@ test "many1 multiple characters with leftovers" {
 }
 
 test "many1 single character with leftovers" {
-    const tag = @import("parser.zig").tag;
+    const tag = parcom.parser.tag;
     parcom.ALLOCATOR = std.testing.allocator;
 
     const input = "abcd";
-    const parser = many1(tag("a"));
+    const parser = many(tag("a"));
     const result = try parser(input);
     try std.testing.expectEqualStrings("bcd", result.input);
     const expecteds = &[_][]const u8{"a"};
@@ -141,12 +141,12 @@ test "many1 single character with leftovers" {
 }
 
 test "many1 invalid allocator" {
-    const tag = @import("parser.zig").tag;
-    // WARN: Possible bug report? Feels like we shouldn't have to set this
+    const tag = parcom.parser.tag;
+    // WARN: Possible Zig bug? Feels like we shouldn't have to set this
     parcom.ALLOCATOR = null;
 
     const input = "a";
-    const parser = many1(tag("a"));
+    const parser = many(tag("a"));
     const result = (parser(input));
     try std.testing.expectError(Error.AllocatorNotSet, result);
 }
@@ -156,7 +156,23 @@ test "many1 failing allocator" {
     parcom.ALLOCATOR = std.testing.failing_allocator;
 
     const input = "a";
-    const parser = many1(tag("a"));
+    const parser = many(tag("a"));
     const result = parser(input);
     try std.testing.expectError(Error.AllocationError, result);
+}
+
+test "many1 tag multicharacter" {
+    const tag = parcom.parser.tag;
+    parcom.ALLOCATOR = std.testing.allocator;
+
+    const input = "bcbc123";
+    const parser = many(tag("bc"));
+    const result = try parser(input);
+    defer result.value.deinit();
+
+    try std.testing.expectEqualStrings("123", result.input);
+    const expecteds = &[_][]const u8{ "bc", "bc" };
+    for (expecteds, result.value.items) |expected, actual| {
+        try std.testing.expectEqualStrings(expected, actual);
+    }
 }

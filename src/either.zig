@@ -4,6 +4,7 @@ const Parser = parcom.Parser;
 const get_return_type = parcom.get_return_type;
 const Error = parcom.Error;
 const Result = parcom.Result;
+const InputType = parcom.InputType;
 
 pub fn either(comptime t: anytype) Parser(get_return_type(t)) {
     comptime {
@@ -13,7 +14,7 @@ pub fn either(comptime t: anytype) Parser(get_return_type(t)) {
 
         const ReturnType = get_return_type(t);
         const impl = struct {
-            fn parse(input: []const u8) Error!Result(ReturnType) {
+            fn parse(input: InputType) Error!Result(ReturnType) {
                 if (input.len == 0) return Error.EndOfStream;
 
                 inline for (t) |parser| {
@@ -34,7 +35,7 @@ pub fn either(comptime t: anytype) Parser(get_return_type(t)) {
 ////////////////////////////////////////
 
 const DigitParser = struct {
-    fn parse(input: []const u8) Error!Result(u8) {
+    fn parse(input: InputType) Error!Result(u8) {
         if (input.len == 0) return Error.EndOfStream;
 
         if (std.ascii.isDigit(input[0])) {
@@ -49,7 +50,7 @@ const DigitParser = struct {
 };
 
 const LetterParser = struct {
-    fn parse(input: []const u8) Error!Result(u8) {
+    fn parse(input: InputType) Error!Result(u8) {
         if (input.len == 0) return Error.EndOfStream;
 
         if (std.ascii.isAlphabetic(input[0])) {
@@ -61,7 +62,7 @@ const LetterParser = struct {
 };
 
 const HyphenParser = struct {
-    fn parse(input: []const u8) Error!Result(u8) {
+    fn parse(input: InputType) Error!Result(u8) {
         if (input.len == 0) return Error.EndOfStream;
 
         if (input[0] == '-') {
@@ -158,26 +159,45 @@ test "either - complex" {
     try std.testing.expectEqualStrings("123", result.value);
 }
 
-// test "either - deeply nested" {
-//     const many1 = parcom.many1;
-//     const tag = parcom.parser.tag;
+test "either - deeply nested" {
+    const many = parcom.combinator.many;
+    const tag = parcom.parser.tag;
+    parcom.ALLOCATOR = std.testing.allocator;
 
-//     const new_parser = either(.{
-//         many1(tag("a")),
-//         many1(tag("bc")),
-//     });
+    const new_parser = either(.{
+        many(tag("a")),
+        many(tag("bc")),
+    });
 
-//     var input: []const u8 = "aaa123";
-//     var result = try new_parser(input);
-//     try std.testing.expectEqualStrings("123", result.input);
-//     var expecteds = &[_][]const u8{ "a", "a", "a" };
-//     for (expecteds, result.value.items) |expected, actual| {
-//         try std.testing.expectEqualStrings(expected, actual);
-//     }
-//     result.value.deinit();
+    var result = try new_parser("aaa123");
+    try std.testing.expectEqualStrings("123", result.input);
+    const expecteds1 = &[_][]const u8{ "a", "a", "a" };
+    for (expecteds1, result.value.items) |expected, actual| {
+        try std.testing.expectEqualStrings(expected, actual);
+    }
+    result.value.deinit();
 
-//     // input = "bc123";
-//     // result = try new_parser(input);
-//     // try std.testing.expectEqualStrings("123", result.input);
-//     // try std.testing.expectEqualStrings("bc", result.value);
-// }
+    result = try new_parser("bcbc123");
+    try std.testing.expectEqualStrings("123", result.input);
+    const expecteds2 = &[_]InputType{ "bc", "bc" };
+    for (expecteds2, result.value.items) |expected, actual| {
+        try std.testing.expectEqualStrings(expected, actual);
+    }
+    result.value.deinit();
+}
+
+test "either - bad allocator" {
+    const many = parcom.combinator.many;
+    const tag = parcom.parser.tag;
+
+    parcom.ALLOCATOR = std.testing.failing_allocator;
+
+    const new_parser = either(.{many(tag("a"))});
+
+    const input = "a123";
+    const result = new_parser(input);
+
+    // WARN: This needs to be reworked. We probably need to propagate the
+    // AllocatorNotSet errors in the either combinator
+    try std.testing.expectError(Error.InvalidToken, result);
+}

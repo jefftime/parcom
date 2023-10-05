@@ -1,17 +1,36 @@
 const std = @import("std");
 const testing = std.testing;
-pub const either = @import("either.zig").either;
-pub const many1 = @import("many.zig").many1;
-pub const seq = @import("seq.zig").seq;
+
+pub const combinator = @import("combinator.zig");
 pub const parser = @import("parser.zig");
 
 ////////////////////////////////////////
 // Types
 ////////////////////////////////////////
 
-const InputType = []const u8;
+pub const InputType = []const u8;
+pub const String = struct {
+    const StringSelf = @This();
+
+    allocator: std.mem.Allocator,
+    value: []const u8,
+
+    pub fn new(
+        allocator: std.mem.Allocator,
+        string: []const u8,
+    ) std.mem.Allocator.Error!String {
+        var result = try allocator.alloc(u8, string.len);
+        std.mem.copy(u8, result, string);
+        return .{ .allocator = allocator, .value = result };
+    }
+
+    pub fn deinit(self: *String) void {
+        self.allocator.free(self.value);
+    }
+};
 
 pub var ALLOCATOR: ?std.mem.Allocator = null;
+pub var STRING_DEFAULT_CAPACITY: usize = 64;
 
 pub const Error = error{
     AllocatorNotSet,
@@ -128,12 +147,15 @@ fn parser_is_type(comptime t: anytype, comptime T: anytype) bool {
 
     return false;
 }
+
 ////////////////////////////////////////
 // Tests
 ////////////////////////////////////////
 
 test {
     std.testing.refAllDecls(@This());
+    std.testing.refAllDecls(combinator);
+    std.testing.refAllDecls(parser);
 }
 
 test "is_parser" {
@@ -195,18 +217,3 @@ test "is_parser with invalid return type" {
     const result = is_parser(invalid_parser.parse) catch |err| err;
     try std.testing.expectEqual(ParseCheckError.InvalidReturnType, result);
 }
-
-// fn cool_add(a: u32, b: u32) void {
-//     std.log.info("{} {}", .{ a, b });
-// }
-
-// fn get_numnum(comptime t: anytype) u32 {
-//     const type_info = @typeInfo(@TypeOf(t));
-//     _ = type_info;
-
-//     return t;
-// }
-
-// test "asdf" {
-//     try std.testing.expectEqual(@as(u32, 32), get_numnum(cool_add(32, 10)));
-// }
