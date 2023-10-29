@@ -8,7 +8,7 @@ const get_return_type = parcom.get_return_type;
 const end_of_stream_check = parcom.end_of_stream_check;
 const whitespace_ignore = parcom.parser.whitespace_ignore;
 
-pub fn trim(comptime t: anytype) Parser(InputType) {
+pub fn trim(comptime t: anytype) Parser(get_return_type(t)) {
     comptime {
         const ReturnType = get_return_type(t);
         const impl = struct {
@@ -80,4 +80,22 @@ test "trim newlines" {
     const result = try parser(input);
     try std.testing.expectEqualStrings("123", result.input);
     try std.testing.expectEqualStrings("asdf", result.value);
+}
+
+test "trim different output type" {
+    const tag = parcom.parser.tag;
+    const MyType = enum { Something };
+
+    const ParserType = struct {
+        pub fn parse(input: InputType) Error!Result(MyType) {
+            const result = try tag("something")(input);
+            return .{ .input = result.input, .value = MyType.Something };
+        }
+    };
+
+    const parser = trim(ParserType.parse);
+
+    const result = try parser("   something   ");
+    try std.testing.expectEqualStrings("", result.input);
+    try std.testing.expectEqual(MyType.Something, result.value);
 }

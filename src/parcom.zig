@@ -35,6 +35,7 @@ pub var STRING_DEFAULT_CAPACITY: usize = 64;
 pub const Error = error{
     AllocatorNotSet,
     AllocationError,
+    InvalidParse,
     InvalidToken,
     EndOfStream,
 };
@@ -60,6 +61,17 @@ pub fn Result(comptime T: anytype) type {
 ////////////////////////////////////////
 // Helper Functions
 ////////////////////////////////////////
+
+pub fn get_return_type_multiple(comptime t: anytype) type {
+    comptime {
+        const ReturnType = get_return_type(t);
+
+        const T = @TypeOf(t);
+        const type_info = @typeInfo(T);
+
+        return [type_info.Struct.fields.len]ReturnType;
+    }
+}
 
 pub fn get_return_type(comptime t: anytype) type {
     comptime {
