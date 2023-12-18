@@ -18,7 +18,7 @@ pub fn either(comptime t: anytype) Parser(get_return_type(t)) {
                 if (input.len == 0) return Error.EndOfStream;
 
                 inline for (t) |parser| {
-                    var result = parser(input) catch null;
+                    const result = parser(input) catch null;
                     if (result) |r| return r;
                 }
 

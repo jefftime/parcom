@@ -16,7 +16,7 @@ pub fn terminated(
                 if (input.len == 0) return Error.EndOfStream;
 
                 var result = try t(input);
-                var end_result = try end(result.input);
+                const end_result = try end(result.input);
                 result.input = end_result.input;
 
                 return result;

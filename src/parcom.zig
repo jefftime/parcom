@@ -19,7 +19,7 @@ pub const String = struct {
         allocator: std.mem.Allocator,
         string: []const u8,
     ) std.mem.Allocator.Error!String {
-        var result = try allocator.alloc(u8, string.len);
+        const result = try allocator.alloc(u8, string.len);
         std.mem.copy(u8, result, string);
         return .{ .allocator = allocator, .value = result };
     }
@@ -82,7 +82,7 @@ pub fn get_return_type(comptime t: anytype) type {
         if (type_info == .Struct) {
             ReturnType = is_parser(t[0]) catch |err| {
                 @compileLog(err);
-                @compileError("Invalid parser in tuple");
+                @compileError("Invalid parser in tuple (" ++ ")");
             };
             inline for (t) |prsr| {
                 const CurReturnType = is_parser(prsr) catch |err| {
@@ -95,8 +95,19 @@ pub fn get_return_type(comptime t: anytype) type {
             }
         } else if (type_info == .Fn) {
             ReturnType = is_parser(t) catch |err| {
-                @compileLog(err);
-                @compileError("Invalid parser");
+                // @compileLog(err);
+                // @compileLog(@typeName(T));
+                // @compileLog(type_info);
+                // inline for (std.meta.declarations(T)) |decl| {
+                //     s
+                // }
+                // @compileError(std.meta.declarations(T))
+                @compileError(
+                    std.fmt.comptimePrint(
+                        "Invalid parser ({}): {}",
+                        .{ @typeName(t), err },
+                    ),
+                );
             };
         } else {
             @compileError("Invalid parser type");
